@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const session = require('express-session');
+const cookieSession = require('cookie-session');
 const methodOverride = require('method-override');
 const path = require('path');
 const axios = require('axios');
@@ -27,11 +27,10 @@ app.use(express.json({ limit: '50mb' }));
 app.use(methodOverride('_method'));
 
 // Sessions
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'romaessence_secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 } // 8 hours
+app.use(cookieSession({
+  name: 'romaessence_session',
+  keys: [process.env.SESSION_SECRET || 'romaessence_secret'],
+  maxAge: 45 * 60 * 1000 // 45 minutes
 }));
 
 // Proxy route for Spider API images

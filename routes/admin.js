@@ -49,7 +49,8 @@ router.post('/login', (req, res) => {
 
 // GET /admin/logout
 router.get('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/admin/login'));
+  req.session = null;
+  res.redirect('/admin/login');
 });
 
 // ─── DASHBOARD ──────────────────────────────────────────────────────────────
