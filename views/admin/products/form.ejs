@@ -1,0 +1,212 @@
+<% locals.currentPath = 'productos'; %>
+<%- include('../partials/layout-start') %>
+
+<div class="page-header">
+  <div>
+    <h1><%= isEdit ? 'Editar Producto' : 'Nuevo Producto' %></h1>
+    <p><%= isEdit ? `Modificando: ${product.name}` : 'Completá los datos del nuevo producto' %></p>
+  </div>
+  <a href="/admin/productos" class="btn btn-secondary">← Volver</a>
+</div>
+
+<% if (error) { %>
+<div class="alert alert-danger">⚠ <%= error %></div>
+<% } %>
+
+<form action="<%= isEdit ? `/admin/productos/${product.id}?_method=PUT` : '/admin/productos' %>"
+      method="POST" enctype="multipart/form-data">
+
+  <!-- ── INFORMACIÓN BÁSICA ── -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+      <span class="card-title">Información básica</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid" style="margin-bottom:1.25rem;">
+        <div class="form-group full">
+          <label for="name">Nombre del producto *</label>
+          <input type="text" id="name" name="name" class="form-control" required
+                 value="<%= isEdit ? product.name : '' %>" placeholder="ej: Perfume Oriental Oud">
+        </div>
+        <div class="form-group">
+          <label for="category">Categoría *</label>
+          <select id="category" name="category" class="form-control">
+            <% categories.forEach(function(cat) { %>
+            <option value="<%= cat %>" <%= isEdit && product.category===cat ? 'selected' : '' %>>
+              <%= cat.charAt(0).toUpperCase() + cat.slice(1) %>
+            </option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="rating">Calificación (1–10)</label>
+          <input type="number" id="rating" name="rating" class="form-control"
+                 min="1" max="10" step="0.1" value="<%= isEdit ? product.rating : 5 %>">
+        </div>
+        <div class="form-group full">
+          <label for="description">Descripción</label>
+          <textarea id="description" name="description" class="form-control" rows="4"
+                    placeholder="Describí el aroma, la inspiración, los ingredientes..."><%= isEdit ? product.description : '' %></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PRECIOS Y STOCK ── -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+      <span class="card-title">Precio y stock</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid cols-3">
+        <div class="form-group">
+          <label for="cost_price">Precio de costo ($)</label>
+          <input type="number" id="cost_price" name="cost_price" class="form-control"
+                 min="0" step="0.01" value="<%= isEdit ? product.cost_price : '' %>" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label for="profit_percent">% Ganancia</label>
+          <input type="number" id="profit_percent" name="profit_percent" class="form-control"
+                 min="0" step="0.1" value="<%= isEdit ? product.profit_percent : '' %>" placeholder="ej: 40">
+          <span class="form-hint">Precio venta = costo × (1 + %/100)</span>
+        </div>
+        <div class="form-group">
+          <label for="stock">Stock</label>
+          <input type="number" id="stock" name="stock" class="form-control"
+                 min="0" step="1" value="<%= isEdit ? product.stock : 0 %>">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ESENCIA ── -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+      <span class="card-title">🧪 Notas de Esencia</span>
+      <span style="font-size:0.78rem;color:var(--text-muted);">Nivel 0 = mínimo · 10 = máximo</span>
+    </div>
+    <div class="card-body">
+      <input type="hidden" id="esencia-json" name="esencia_json" value="<%= isEdit ? JSON.stringify(product.esencia) : '{}' %>">
+      <div class="esencia-builder" id="esencia-rows"></div>
+      <button type="button" class="btn-add-esencia" id="add-esencia-btn" style="margin-top:1rem;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Agregar nota
+      </button>
+    </div>
+  </div>
+
+  <!-- ── ETIQUETAS ── -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+      <span class="card-title">Etiquetas / Hashtags</span>
+    </div>
+    <div class="card-body">
+      <input type="hidden" id="tags-json" name="tags_json" value="<%= isEdit ? JSON.stringify(product.tags) : '[]' %>">
+      <label>Tags (presioná Enter, coma o espacio para agregar)</label>
+      <div class="tags-input-wrap" style="margin-top:0.4rem;">
+        <input type="text" class="tags-input" placeholder="arabe, perfume mujer, oud...">
+      </div>
+      <span class="form-hint">Ej: #arabe, #perfumemujer, #oud, #mendoza</span>
+    </div>
+  </div>
+
+  <!-- ── IMÁGENES ── -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+      <span class="card-title">Imágenes</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+
+        <!-- Foto principal -->
+        <div class="form-group">
+          <label>Foto principal</label>
+          <% if (isEdit && product.photo_file_id) { %>
+          <div style="margin-bottom:0.75rem;">
+            <img src="/files/<%= product.photo_file_id %>" alt="Actual"
+                 style="height:120px;border-radius:8px;object-fit:cover;">
+            <span class="form-hint">Subí una nueva para reemplazar</span>
+          </div>
+          <% } %>
+          <div class="upload-area">
+            <input type="file" id="photo-input" name="photo" accept="image/*">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <p>Arrastrá o hacé click para subir</p>
+            <span>JPG, PNG, WEBP · máx 20MB</span>
+          </div>
+          <div id="photo-preview" class="upload-preview"></div>
+        </div>
+
+        <!-- Banner -->
+        <div class="form-group">
+          <label>Imagen Banner <span style="color:var(--text-faint)">(opcional — sección destacados)</span></label>
+          <% if (isEdit && product.banner_file_id) { %>
+          <div style="margin-bottom:0.75rem;">
+            <img src="/files/<%= product.banner_file_id %>" alt="Banner actual"
+                 style="height:80px;border-radius:8px;object-fit:cover;width:100%;">
+            <label style="display:flex;align-items:center;gap:0.4rem;margin-top:0.4rem;cursor:pointer;font-size:0.78rem;">
+              <input type="checkbox" name="remove_banner" value="on">
+              Eliminar banner actual
+            </label>
+          </div>
+          <% } %>
+          <div class="upload-area">
+            <input type="file" id="banner-input" name="banner" accept="image/*">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="21 15 16 10 5 21"/></svg>
+            <p>Imagen de banner horizontal</p>
+            <span>Recomendado: 1200×600px</span>
+          </div>
+          <div id="banner-preview" class="upload-preview"></div>
+        </div>
+
+        <!-- Extra images -->
+        <div class="form-group full">
+          <label>Imágenes adicionales (galería)</label>
+          <% if (isEdit && product.extra_images.length > 0) { %>
+          <div style="margin-bottom:0.5rem;">
+            <span class="form-hint">Marcá las que querés eliminar</span>
+            <div class="existing-images">
+              <% product.extra_images.forEach(function(imgId) { %>
+              <div class="existing-img-item">
+                <img src="/files/<%= imgId %>" alt="Extra">
+                <input type="checkbox" id="rm_<%= imgId %>" name="remove_extra_images" value="<%= imgId %>">
+                <label for="rm_<%= imgId %>">✕</label>
+              </div>
+              <% }) %>
+            </div>
+          </div>
+          <% } %>
+          <div class="upload-area">
+            <input type="file" id="extra-images-input" name="extra_images" accept="image/*" multiple>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="21 15 16 10 5 21"/></svg>
+            <p>Podés seleccionar varias imágenes</p>
+            <span>Máx 10 archivos</span>
+          </div>
+          <div id="extra-preview" class="upload-preview"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ESTADO ── -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-body">
+      <label class="form-check">
+        <input type="checkbox" name="active" value="1" <%= !isEdit || product.active ? 'checked' : '' %>>
+        <span>Producto activo (visible en catálogo)</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div style="display:flex;gap:1rem;justify-content:flex-end;">
+    <a href="/admin/productos" class="btn btn-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-primary">
+      <%= isEdit ? '💾 Guardar cambios' : '✨ Crear producto' %>
+    </button>
+  </div>
+
+</form>
+
+<%- include('../partials/layout-end') %>

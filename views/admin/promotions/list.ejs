@@ -1,0 +1,125 @@
+<% locals.currentPath = 'promociones'; %>
+<%- include('../partials/layout-start') %>
+
+<div class="page-header">
+  <div>
+    <h1>Promociones y Anuncios</h1>
+    <p>Las promociones activas aparecen como carrusel en el catálogo</p>
+  </div>
+</div>
+
+<% if (locals.query && locals.query.error) { %>
+<div class="alert alert-danger">Error: <%= locals.query.error %></div>
+<% } %>
+
+<!-- ADD PROMO FORM -->
+<div class="card" style="margin-bottom:2rem;">
+  <div class="card-header">
+    <span class="card-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Nueva promoción
+    </span>
+  </div>
+  <div class="card-body">
+    <form action="/admin/promociones" method="POST" enctype="multipart/form-data">
+      <div class="form-grid" style="margin-bottom:1.25rem;">
+        <div class="form-group">
+          <label>Imagen de la promoción *</label>
+          <div class="upload-area">
+            <input type="file" id="promo-image-input" name="promo_image" accept="image/*" required>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="21 15 16 10 5 21"/></svg>
+            <p>Arrastrá o hacé click</p>
+            <span>Recomendado 16:9</span>
+          </div>
+          <div id="promo-preview" class="upload-preview"></div>
+        </div>
+        <div class="form-group">
+          <div class="form-group" style="margin-bottom:1rem;">
+            <label for="promo-link">Link (opcional)</label>
+            <input type="url" id="promo-link" name="link" class="form-control" placeholder="https://...">
+            <span class="form-hint">Al hacer click en la imagen en el catálogo</span>
+          </div>
+          <div class="form-group" style="margin-bottom:1rem;">
+            <label for="promo-order">Orden en carrusel</label>
+            <input type="number" id="promo-order" name="display_order" class="form-control" value="0" min="0">
+          </div>
+          <label class="form-check">
+            <input type="checkbox" name="active" value="1" checked>
+            <span>Activa (visible en catálogo)</span>
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;">
+        <button type="submit" class="btn btn-primary">📢 Crear promoción</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- PROMOTIONS LIST -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Promociones (<%= promotions.length %>)</span>
+  </div>
+  <% if (promotions.length > 0) { %>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Vista previa</th>
+          <th>Link</th>
+          <th>Orden</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% promotions.forEach(function(promo) { %>
+        <tr>
+          <td>
+            <div style="width:120px;height:68px;border-radius:6px;overflow:hidden;background:var(--bg-3);">
+              <img src="/files/<%= promo.image_file_id %>" alt="Promo"
+                   style="width:100%;height:100%;object-fit:cover;">
+            </div>
+          </td>
+          <td>
+            <% if (promo.link) { %>
+            <a href="<%= promo.link %>" target="_blank" style="color:var(--accent-light);font-size:0.82rem;word-break:break-all;">
+              <%= promo.link.substring(0,50) %><%= promo.link.length>50?'...':'' %>
+            </a>
+            <% } else { %>
+            <span style="color:var(--text-faint);font-size:0.82rem;">Sin link</span>
+            <% } %>
+          </td>
+          <td><%= promo.display_order %></td>
+          <td>
+            <label class="toggle-switch">
+              <input type="checkbox" <%= promo.active ? 'checked' : '' %>
+                     data-toggle-url="/admin/promociones/<%= promo.id %>/toggle">
+              <span class="toggle-slider"></span>
+            </label>
+          </td>
+          <td>
+            <div class="td-actions">
+              <!-- Edit inline modal workaround: simple form -->
+              <form action="/admin/promociones/<%= promo.id %>?_method=DELETE" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-danger btn-sm btn-icon"
+                        data-confirm="¿Eliminar esta promoción?" title="Eliminar">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } else { %>
+  <div style="text-align:center;padding:3rem;color:var(--text-muted);">
+    Sin promociones aún. Creá la primera arriba.
+  </div>
+  <% } %>
+</div>
+
+<%- include('../partials/layout-end') %>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>
+    <%= title %>
+  </title>
+  <meta name="description"
+    content="Romaessence — Perfumería de autor en Mendoza. Descubrí fragancias únicas, cremas y más.">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="icon" href="/assets/logo.png" type="image/png">
+</head>
+
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="logo-link">
+        <img src="/assets/logo.png" alt="Romaessence" class="logo-img">
+      </a>
+
+      <form id="filter-form" action="/" method="GET" class="header-search">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24"
+          stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.35-4.35" />
+        </svg>
+        <input type="text" name="search" value="<%= search %>" placeholder="Buscar perfumes, cremas...">
+        <input type="hidden" name="category" id="category-hidden" value="<%= selectedCategory %>">
+        <input type="hidden" name="esencia_note" value="<%= selectedEsencia %>">
+      </form>
+
+      <nav class="header-nav">
+        <a href="/">Catálogo</a>
+      </nav>
+    </div>
+  </header>

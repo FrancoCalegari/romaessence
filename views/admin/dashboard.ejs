@@ -1,0 +1,103 @@
+<% locals.currentPath = 'dashboard'; %>
+<%- include('./partials/layout-start') %>
+
+<!-- Stats -->
+<div class="page-header">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Bienvenido al panel de administración de Romaessence</p>
+  </div>
+  <a href="/admin/productos/nuevo" class="btn btn-primary">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Nuevo producto
+  </a>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon purple">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+    </div>
+    <span class="stat-label">Total Productos</span>
+    <span class="stat-value"><%= stats.totalProducts %></span>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <span class="stat-label">Activos</span>
+    <span class="stat-value" style="color:var(--success)"><%= stats.activeProducts %></span>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <span class="stat-label">Sin stock</span>
+    <span class="stat-value" style="color:var(--danger)"><%= stats.noStockProducts %></span>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon amber">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/></svg>
+    </div>
+    <span class="stat-label">Promociones activas</span>
+    <span class="stat-value" style="color:var(--warning)"><%= stats.activePromotions %></span>
+  </div>
+</div>
+
+<!-- Recent products table -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Últimos productos agregados
+    </span>
+    <a href="/admin/productos" class="btn btn-secondary btn-sm">Ver todos</a>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Foto</th>
+          <th>Nombre</th>
+          <th>Categoría</th>
+          <th>Precio venta</th>
+          <th>Stock</th>
+          <th>Rating</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% recentProducts.forEach(function(p) { %>
+        <tr>
+          <td>
+            <div class="td-img">
+              <% if (p.photo_file_id) { %>
+              <img src="/files/<%= p.photo_file_id %>" alt="">
+              <% } else { %><div class="no-img">🌸</div><% } %>
+            </div>
+          </td>
+          <td><strong><%= p.name %></strong></td>
+          <td><span class="badge badge-purple"><%= p.category %></span></td>
+          <td>$ <%= p.sell_price.toFixed(2) %></td>
+          <td>
+            <span class="badge <%= p.stock===0?'badge-red':p.stock<5?'badge-amber':'badge-green' %>">
+              <%= p.stock %>
+            </span>
+          </td>
+          <td>★ <%= p.rating %></td>
+          <td>
+            <span class="badge <%= p.active?'badge-green':'badge-gray' %>">
+              <%= p.active ? 'Activo' : 'Inactivo' %>
+            </span>
+          </td>
+        </tr>
+        <% }) %>
+        <% if (recentProducts.length === 0) { %>
+        <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">Sin productos aún. <a href="/admin/productos/nuevo" style="color:var(--accent);">Crear primero</a></td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('./partials/layout-end') %>

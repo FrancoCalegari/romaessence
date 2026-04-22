@@ -1,0 +1,158 @@
+<%- include('partials/header') %>
+
+<main>
+
+  <!-- ── BANNER SECTION ─────────────────────────────── -->
+  <% if (bannerProducts.length > 0) { %>
+  <section class="banner-section">
+    <div class="section-title" style="margin-bottom:0.3rem;">Destacados</div>
+    <div class="section-subtitle">nuestra selección</div>
+    <div class="banner-carousel-wrapper" style="position: relative; overflow: hidden; border-radius: var(--radius-lg);">
+      <div class="banner-carousel" id="featured-banner-carousel" style="display: flex; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);">
+        <% bannerProducts.forEach(function(p) { %>
+        <a href="/producto/<%= p.id %>" class="banner-slide" style="flex-shrink: 0; width: 100%; position: relative; aspect-ratio: 16/9; display: block; overflow: hidden;">
+          <% if (p.banner_file_id) { %>
+            <img src="/files/<%= p.banner_file_id %>" alt="<%= p.name %>" style="width: 100%; height: 100%; object-fit: cover;">
+          <% } else { %>
+            <div style="background:var(--bg-3);width:100%;height:100%;"></div>
+          <% } %>
+        </a>
+        <% }) %>
+      </div>
+      <% if (bannerProducts.length > 1) { %>
+      <div class="banner-controls" style="position: absolute; bottom: 2rem; right: 2rem; display: flex; gap: 0.5rem; z-index: 10;">
+        <% bannerProducts.forEach(function(_, i) { %>
+        <div class="banner-dot <%= i===0?'active':'' %>" data-index="<%= i %>"></div>
+        <% }) %>
+      </div>
+      <% } %>
+    </div>
+  </section>
+  <% } %>
+
+  <!-- ── PROMOTIONS CAROUSEL ────────────────────────── -->
+  <% if (promotions.length > 0) { %>
+  <section class="promos-section">
+    <div class="section-title">Promociones</div>
+    <div class="section-subtitle">ofertas y anuncios</div>
+    <div class="promo-carousel-wrapper">
+      <div class="promo-carousel">
+        <div class="promo-track">
+          <% promotions.forEach(function(promo) { %>
+          <div class="promo-card" <% if(promo.link){ %>onclick="window.open('<%= promo.link %>','_blank')" style="cursor:pointer;"<% } %>>
+            <img src="/files/<%= promo.image_file_id %>" alt="Promoción">
+          </div>
+          <% }) %>
+        </div>
+      </div>
+      <% if (promotions.length > 1) { %>
+      <div class="carousel-controls">
+        <button class="carousel-btn carousel-prev" aria-label="Anterior">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="carousel-dots">
+          <% promotions.forEach(function(_, i) { %>
+          <div class="carousel-dot <%= i===0?'active':'' %>"></div>
+          <% }) %>
+        </div>
+        <button class="carousel-btn carousel-next" aria-label="Siguiente">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <% } %>
+    </div>
+  </section>
+  <% } %>
+
+  <!-- ── FILTERS ─────────────────────────────────────── -->
+  <section class="filters-section">
+    <div class="filters-row">
+      <span class="filter-label">Categoría</span>
+      <div class="filter-chips">
+        <button class="filter-chip <%= !selectedCategory ? 'active' : '' %>" data-cat-filter="">Todas</button>
+        <% categories.forEach(function(cat) { %>
+        <button class="filter-chip <%= selectedCategory === cat ? 'active' : '' %>" data-cat-filter="<%= cat %>">
+          <%= cat.charAt(0).toUpperCase() + cat.slice(1) %>
+        </button>
+        <% }) %>
+      </div>
+      <input type="hidden" name="category" value="">
+      <select id="sort-select" class="sort-select">
+        <option value="rating">Mejor puntuados</option>
+        <option value="price_asc">Precio: menor a mayor</option>
+        <option value="price_desc">Precio: mayor a menor</option>
+        <option value="name">Nombre A-Z</option>
+      </select>
+    </div>
+
+
+  </section>
+
+  <!-- ── CATALOG GRID ────────────────────────────────── -->
+  <section class="catalog-section">
+    <% if (products.length > 0) { %>
+    <div class="product-grid" id="product-grid">
+      <% products.forEach(function(p) { %>
+      <%
+        const esenciaEntries = Object.entries(p.esencia).sort((a,b)=>b[1]-a[1]);
+        const topNotes = esenciaEntries.slice(0,3);
+      %>
+      <a href="/producto/<%= p.id %>" class="product-card fade-in"
+         data-rating="<%= p.rating %>"
+         data-price="<%= p.sell_price.toFixed(2) %>"
+         data-name="<%= p.name.toLowerCase() %>">
+
+        <% if (p.stock === 0) { %><div class="out-of-stock">Sin stock</div><% } %>
+        <div class="product-card-badge"><%= p.category %></div>
+
+        <div class="product-card-img">
+          <% if (p.photo_file_id) { %>
+          <img src="/files/<%= p.photo_file_id %>" alt="<%= p.name %>" loading="lazy">
+          <% } else { %>
+          <div class="no-img">🌸</div>
+          <% } %>
+        </div>
+
+        <div class="product-card-info">
+          <div class="product-card-cat"><%= p.category %></div>
+          <div class="product-card-name"><%= p.name %></div>
+
+          <% if (topNotes.length > 0) { %>
+          <div class="product-card-esencia">
+            <% topNotes.forEach(function(entry) { %>
+            <span class="esencia-chip"><%= entry[0] %> · <%= entry[1] %></span>
+            <% }) %>
+          </div>
+          <% } %>
+
+          <div class="product-card-footer">
+            <div class="rating-display">
+              <div class="rating-stars">
+                <% for(let i=1;i<=10;i++) { %>
+                <svg class="star <%= i<=Math.round(p.rating)?'':'empty' %>" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <% } %>
+              </div>
+              <span class="rating-val"><%= p.rating %></span>
+            </div>
+            <div class="product-price">$ <%= p.sell_price.toFixed(2) %></div>
+          </div>
+        </div>
+      </a>
+      <% }) %>
+    </div>
+    <% } else { %>
+    <div class="product-grid">
+      <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <h3>Sin resultados</h3>
+        <p>No encontramos productos que coincidan con tu búsqueda.</p>
+        <a href="/" style="color:var(--gold);margin-top:1rem;display:inline-block;">Ver todo el catálogo</a>
+      </div>
+    </div>
+    <% } %>
+  </section>
+
+</main>
+
+<script src="/js/catalog.js"></script>
+<%- include('partials/footer') %>

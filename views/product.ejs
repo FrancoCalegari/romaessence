@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <meta name="description" content="<%= product.description.substring(0,160) %>">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="icon" href="/assets/logo.png" type="image/png">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="logo-link">
+      <img src="/assets/logo.png" alt="Romaessence" class="logo-img">
+    </a>
+    <form id="filter-form" action="/" method="GET" class="header-search">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" name="search" placeholder="Buscar...">
+      <input type="hidden" name="category" value="">
+    </form>
+    <nav class="header-nav">
+      <a href="/">Catálogo</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="detail-page">
+
+  <div class="detail-breadcrumb">
+    <a href="/">Inicio</a> › <a href="/?category=<%= product.category %>"><%= product.category %></a> › <%= product.name %>
+  </div>
+
+  <div class="detail-grid">
+    <!-- Gallery -->
+    <div>
+      <div class="gallery-main">
+        <% if (product.photo_file_id) { %>
+        <img id="gallery-main-img" src="/files/<%= product.photo_file_id %>" alt="<%= product.name %>">
+        <% } else { %>
+        <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:5rem;background:var(--bg-2);">🌸</div>
+        <% } %>
+      </div>
+      <% if (product.extra_images.length > 0) { %>
+      <div class="gallery-thumbs">
+        <% if (product.photo_file_id) { %>
+        <div class="gallery-thumb active" data-src="/files/<%= product.photo_file_id %>">
+          <img src="/files/<%= product.photo_file_id %>" alt="Principal">
+        </div>
+        <% } %>
+        <% product.extra_images.forEach(function(imgId) { %>
+        <div class="gallery-thumb" data-src="/files/<%= imgId %>">
+          <img src="/files/<%= imgId %>" alt="Imagen" loading="lazy">
+        </div>
+        <% }) %>
+      </div>
+      <% } %>
+    </div>
+
+    <!-- Info -->
+    <div>
+      <div class="detail-cat"><%= product.category %></div>
+      <h1 class="detail-name"><%= product.name %></h1>
+
+      <div class="detail-rating-row">
+        <div class="rating-display">
+          <div class="rating-stars">
+            <% for(let i=1;i<=10;i++) { %>
+            <svg class="star <%= i<=Math.round(product.rating)?'':'empty' %>" viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <% } %>
+          </div>
+          <span class="rating-val"><%= product.rating %>/10</span>
+        </div>
+      </div>
+
+      <div class="detail-price">$ <%= product.sell_price.toFixed(2) %></div>
+
+      <% const stockClass = product.stock === 0 ? 'none' : product.stock < 5 ? 'low' : 'ok'; %>
+      <div class="detail-stock <%= stockClass %>">
+        <% if (product.stock === 0) { %>⚠ Sin stock
+        <% } else if (product.stock < 5) { %>⚡ Últimas <%= product.stock %> unidades
+        <% } else { %>✓ En stock (<%= product.stock %> disponibles)<% } %>
+      </div>
+
+      <p class="detail-desc"><%= product.description %></p>
+
+      <!-- ESENCIA -->
+      <% const esenciaEntries = Object.entries(product.esencia).sort((a,b)=>b[1]-a[1]); %>
+      <% if (esenciaEntries.length > 0) { %>
+      <div class="esencia-section">
+        <div class="esencia-title">Notas de Esencia</div>
+        <div class="esencia-bars">
+          <% esenciaEntries.forEach(function(entry) { %>
+          <div class="esencia-row">
+            <span class="esencia-name"><%= entry[0] %></span>
+            <div class="esencia-bar-track">
+              <div class="esencia-bar-fill" style="--target: <%= entry[1]/10 %>; transform: scaleX(<%= entry[1]/10 %>);"></div>
+            </div>
+            <span class="esencia-val"><%= entry[1] %></span>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- TAGS -->
+      <% if (product.tags.length > 0) { %>
+      <div class="detail-tags">
+        <% product.tags.forEach(function(tag) { %>
+        <a href="/?search=<%= encodeURIComponent(tag) %>" class="tag-chip">#<%= tag %></a>
+        <% }) %>
+      </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Related -->
+  <% if (related.length > 0) { %>
+  <section class="related-section">
+    <div class="section-title">También te puede gustar</div>
+    <div class="section-subtitle">misma categoría</div>
+    <div class="product-grid">
+      <% related.forEach(function(p) { %>
+      <%
+        const topNotes = Object.entries(p.esencia).sort((a,b)=>b[1]-a[1]).slice(0,2);
+      %>
+      <a href="/producto/<%= p.id %>" class="product-card fade-in"
+         data-rating="<%= p.rating %>" data-price="<%= p.sell_price.toFixed(2) %>" data-name="<%= p.name.toLowerCase() %>">
+        <div class="product-card-badge"><%= p.category %></div>
+        <div class="product-card-img">
+          <% if (p.photo_file_id) { %>
+          <img src="/files/<%= p.photo_file_id %>" alt="<%= p.name %>" loading="lazy">
+          <% } else { %><div class="no-img">🌸</div><% } %>
+        </div>
+        <div class="product-card-info">
+          <div class="product-card-name"><%= p.name %></div>
+          <% if (topNotes.length > 0) { %>
+          <div class="product-card-esencia">
+            <% topNotes.forEach(function(e) { %>
+            <span class="esencia-chip"><%= e[0] %> · <%= e[1] %></span>
+            <% }) %>
+          </div>
+          <% } %>
+          <div class="product-card-footer">
+            <span class="rating-val">★ <%= p.rating %></span>
+            <div class="product-price">$ <%= p.sell_price.toFixed(2) %></div>
+          </div>
+        </div>
+      </a>
+      <% }) %>
+    </div>
+  </section>
+  <% } %>
+
+</div>
+</main>
+
+<script src="/js/catalog.js"></script>
+<%- include('partials/footer') %>
