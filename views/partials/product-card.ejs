@@ -1,0 +1,45 @@
+<%
+  const esenciaEntries = Object.entries(p.esencia).sort((a,b)=>b[1]-a[1]);
+  const topNotes = esenciaEntries.slice(0,3);
+%>
+<a href="/producto/<%= p.id %>" class="product-card fade-in"
+   data-rating="<%= p.rating %>"
+   data-price="<%= p.sell_price.toFixed(2) %>"
+   data-name="<%= p.name.toLowerCase() %>">
+
+  <% if (p.stock === 0) { %><div class="out-of-stock">Sin stock</div><% } %>
+  <div class="product-card-badge"><%= p.category %></div>
+
+  <div class="product-card-img">
+    <% if (p.photo_file_id) { %>
+    <img src="/files/<%= p.photo_file_id %>" alt="<%= p.name %>" loading="lazy">
+    <% } else { %>
+    <div class="no-img">🌸</div>
+    <% } %>
+  </div>
+
+  <div class="product-card-info">
+    <div class="product-card-cat"><%= p.category %></div>
+    <div class="product-card-name"><%= p.name %></div>
+
+    <% if (topNotes.length > 0) { %>
+    <div class="product-card-esencia">
+      <% topNotes.forEach(function(entry) { %>
+      <span class="esencia-chip"><%= entry[0] %> · <%= entry[1] %></span>
+      <% }) %>
+    </div>
+    <% } %>
+
+    <div class="product-card-footer">
+      <div class="rating-display">
+        <div class="rating-stars">
+          <% for(let i=1;i<=10;i++) { %>
+          <svg class="star <%= i<=Math.round(p.rating)?'':'empty' %>" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <% } %>
+        </div>
+        <span class="rating-val"><%= p.rating %></span>
+      </div>
+      <div class="product-price">$ <%= p.sell_price.toFixed(2) %></div>
+    </div>
+  </div>
+</a>

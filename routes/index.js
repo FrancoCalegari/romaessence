@@ -50,8 +50,25 @@ router.get('/', async (req, res) => {
       SELECT * FROM promotions WHERE active = 1 ORDER BY display_order ASC
     `);
 
-    // Categories for filter
-    const categories = ['perfume', 'crema', 'jabones', 'desodorantes'];
+    // Categories for filter and grouping
+    let categories = [];
+    try {
+      const catRows = await query(`SELECT * FROM categories WHERE active = 1 ORDER BY name ASC`);
+      if (catRows && catRows.length > 0) categories = catRows;
+    } catch(e) {}
+    if (categories.length === 0) {
+      categories = [
+        {name: 'perfume', icon: '🌸', color: '#a78bfa'},
+        {name: 'crema', icon: '🧴', color: '#34d399'},
+        {name: 'jabones', icon: '🧼', color: '#f59e0b'},
+        {name: 'desodorantes', icon: '✨', color: '#60a5fa'}
+      ];
+    }
+
+    // Top 6 products regardless of category
+    const topProducts = (await query(`
+      SELECT * FROM products WHERE active = 1 ORDER BY rating DESC, created_at DESC LIMIT 6
+    `)).map(parseProduct);
 
     // All esencia notes for filter (collect unique)
     const allProducts = await query(`SELECT esencia FROM products WHERE active = 1`);
@@ -69,6 +86,7 @@ router.get('/', async (req, res) => {
       bannerProducts,
       promotions,
       categories,
+      topProducts,
       esenciaNotes: [...esenciaNotes].sort(),
       search,
       selectedCategory: category,

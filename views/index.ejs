@@ -71,8 +71,8 @@
       <div class="filter-chips">
         <button class="filter-chip <%= !selectedCategory ? 'active' : '' %>" data-cat-filter="">Todas</button>
         <% categories.forEach(function(cat) { %>
-        <button class="filter-chip <%= selectedCategory === cat ? 'active' : '' %>" data-cat-filter="<%= cat %>">
-          <%= cat.charAt(0).toUpperCase() + cat.slice(1) %>
+        <button class="filter-chip <%= selectedCategory === cat.name ? 'active' : '' %>" data-cat-filter="<%= cat.name %>">
+          <%= cat.name.charAt(0).toUpperCase() + cat.name.slice(1) %>
         </button>
         <% }) %>
       </div>
@@ -88,67 +88,81 @@
 
   </section>
 
-  <!-- ── CATALOG GRID ────────────────────────────────── -->
-  <section class="catalog-section">
-    <% if (products.length > 0) { %>
-    <div class="product-grid" id="product-grid">
-      <% products.forEach(function(p) { %>
-      <%
-        const esenciaEntries = Object.entries(p.esencia).sort((a,b)=>b[1]-a[1]);
-        const topNotes = esenciaEntries.slice(0,3);
-      %>
-      <a href="/producto/<%= p.id %>" class="product-card fade-in"
-         data-rating="<%= p.rating %>"
-         data-price="<%= p.sell_price.toFixed(2) %>"
-         data-name="<%= p.name.toLowerCase() %>">
-
-        <% if (p.stock === 0) { %><div class="out-of-stock">Sin stock</div><% } %>
-        <div class="product-card-badge"><%= p.category %></div>
-
-        <div class="product-card-img">
-          <% if (p.photo_file_id) { %>
-          <img src="/files/<%= p.photo_file_id %>" alt="<%= p.name %>" loading="lazy">
-          <% } else { %>
-          <div class="no-img">🌸</div>
-          <% } %>
-        </div>
-
-        <div class="product-card-info">
-          <div class="product-card-cat"><%= p.category %></div>
-          <div class="product-card-name"><%= p.name %></div>
-
-          <% if (topNotes.length > 0) { %>
-          <div class="product-card-esencia">
-            <% topNotes.forEach(function(entry) { %>
-            <span class="esencia-chip"><%= entry[0] %> · <%= entry[1] %></span>
-            <% }) %>
-          </div>
-          <% } %>
-
-          <div class="product-card-footer">
-            <div class="rating-display">
-              <div class="rating-stars">
-                <% for(let i=1;i<=10;i++) { %>
-                <svg class="star <%= i<=Math.round(p.rating)?'':'empty' %>" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                <% } %>
-              </div>
-              <span class="rating-val"><%= p.rating %></span>
-            </div>
-            <div class="product-price">$ <%= p.sell_price.toFixed(2) %></div>
-          </div>
-        </div>
-      </a>
+  <!-- ── MEJORES PRODUCTOS ──────────────────────────── -->
+  <% if (!search && topProducts && topProducts.length > 0) { %>
+  <section class="top-products-section">
+    <div class="section-title">Mejores Productos</div>
+    <div class="section-subtitle">los favoritos de nuestros clientes</div>
+    <div class="product-grid" style="margin-bottom: 2rem;">
+      <% topProducts.forEach(function(p) { %>
+        <%- include('partials/product-card', { p }) %>
       <% }) %>
     </div>
+  </section>
+  <% } %>
+
+  <!-- ── CATALOG GRID ────────────────────────────────── -->
+  <section class="catalog-section">
+    <% if (!search && !selectedCategory) { %>
+      <div class="section-title" style="margin-top: 1rem;">Catálogo</div>
+      <div class="section-subtitle">explora nuestras colecciones</div>
+    <% } else if (search || selectedCategory) { %>
+      <div class="section-title" style="margin-top: 1rem;">Resultados</div>
+      <div class="section-subtitle">búsqueda y filtros</div>
+    <% } %>
+
+    <% if (products.length > 0) { %>
+      
+      <% 
+        let catsToRender = categories;
+        if (selectedCategory) {
+          catsToRender = categories.filter(c => c.name === selectedCategory);
+        }
+      %>
+
+      <% catsToRender.forEach(function(cat) { %>
+        <% const catProducts = products.filter(p => p.category === cat.name); %>
+        <% if (catProducts.length > 0) { %>
+          <div class="category-group" style="margin-bottom: 4rem;">
+            <div class="category-group-header" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border);">
+              <span style="font-size:1.5rem;background:<%= cat.color %>22;color:<%= cat.color %>;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;"><%= cat.icon %></span>
+              <h2 style="font-size:1.4rem;font-weight:600;text-transform:capitalize;margin:0;"><%= cat.name %></h2>
+            </div>
+            <div class="product-grid" id="product-grid-<%= cat.name %>">
+              <% catProducts.forEach(function(p) { %>
+                <%- include('partials/product-card', { p }) %>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
+      <% }) %>
+
+      <% 
+        // Productos huérfanos (sin categoría válida o antigua)
+        const knownCatNames = categories.map(c => c.name);
+        const otherProducts = products.filter(p => !knownCatNames.includes(p.category));
+      %>
+      <% if (otherProducts.length > 0) { %>
+        <div class="category-group" style="margin-bottom: 4rem;">
+          <div class="category-group-header" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border);">
+            <span style="font-size:1.5rem;background:var(--bg-3);width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;">📦</span>
+            <h2 style="font-size:1.4rem;font-weight:600;margin:0;">Otros Productos</h2>
+          </div>
+          <div class="product-grid" id="product-grid-otros">
+            <% otherProducts.forEach(function(p) { %>
+              <%- include('partials/product-card', { p }) %>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
     <% } else { %>
-    <div class="product-grid">
       <div class="empty-state">
         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <h3>Sin resultados</h3>
         <p>No encontramos productos que coincidan con tu búsqueda.</p>
         <a href="/" style="color:var(--gold);margin-top:1rem;display:inline-block;">Ver todo el catálogo</a>
       </div>
-    </div>
     <% } %>
   </section>
 
