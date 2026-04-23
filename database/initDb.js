@@ -34,7 +34,32 @@ async function initDb() {
     )
   `);
 
-  console.log('✅ Tablas verificadas: products, promotions');
+  // Create categories table
+  await query(`
+    CREATE TABLE IF NOT EXISTS categories (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      name VARCHAR(100) NOT NULL UNIQUE,
+      description TEXT,
+      color VARCHAR(20) DEFAULT '#a78bfa',
+      icon VARCHAR(10) DEFAULT '🏷️',
+      active TINYINT(1) DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Seed default categories if none exist
+  const existing = await query(`SELECT COUNT(*) as c FROM categories`);
+  if ((existing[0]?.c || 0) === 0) {
+    await query(`
+      INSERT INTO categories (name, description, color, icon) VALUES
+        ('perfume', 'Perfumes y fragancias', '#a78bfa', '🌸'),
+        ('crema', 'Cremas corporales y faciales', '#34d399', '🧴'),
+        ('jabones', 'Jabones artesanales', '#f59e0b', '🧼'),
+        ('desodorantes', 'Desodorantes naturales', '#60a5fa', '✨')
+    `);
+  }
+
+  console.log('✅ Tablas verificadas: products, promotions, categories');
 }
 
 module.exports = { initDb };

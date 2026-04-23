@@ -10,7 +10,14 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 } // 20MB
 });
 
-const CATEGORIES = ['perfume', 'crema', 'jabones', 'desodorantes'];
+/** Fetch active category names from DB (falls back to hardcoded list on error) */
+async function getCategoryNames() {
+  try {
+    const rows = await query(`SELECT name FROM categories WHERE active = 1 ORDER BY name ASC`);
+    if (rows && rows.length > 0) return rows.map(r => r.name);
+  } catch (_) {}
+  return ['perfume', 'crema', 'jabones', 'desodorantes'];
+}
 
 function parseProduct(p) {
   if (!p) return null;
@@ -105,11 +112,12 @@ router.get('/productos', requireAuth, async (req, res) => {
 });
 
 // GET /admin/productos/nuevo
-router.get('/productos/nuevo', requireAuth, (req, res) => {
+router.get('/productos/nuevo', requireAuth, async (req, res) => {
+  const categories = await getCategoryNames();
   res.render('admin/products/form', {
     title: 'Nuevo Producto — Admin Romaessence',
     product: null,
-    categories: CATEGORIES,
+    categories,
     isEdit: false,
     error: null
   });
@@ -183,10 +191,11 @@ router.post('/productos', requireAuth, upload.fields([
     res.redirect('/admin/productos');
   } catch (err) {
     console.error(err);
+    const categories = await getCategoryNames();
     res.render('admin/products/form', {
       title: 'Nuevo Producto — Admin Romaessence',
       product: req.body,
-      categories: CATEGORIES,
+      categories,
       isEdit: false,
       error: err.message
     });
@@ -199,10 +208,11 @@ router.get('/productos/:id/editar', requireAuth, async (req, res) => {
     const rows = await query(`SELECT * FROM products WHERE id = ${esc(req.params.id)} LIMIT 1`);
     if (!rows || rows.length === 0) return res.redirect('/admin/productos');
     const product = parseProduct(rows[0]);
+    const categories = await getCategoryNames();
     res.render('admin/products/form', {
       title: `Editar ${product.name} — Admin`,
       product,
-      categories: CATEGORIES,
+      categories,
       isEdit: true,
       error: null
     });
@@ -434,6 +444,90 @@ router.patch('/promociones/:id/toggle', requireAuth, async (req, res) => {
       UPDATE promotions SET active = CASE WHEN active = 1 THEN 0 ELSE 1 END
       WHERE id = ${esc(req.params.id)}
     `);
+    res.json({ success: true });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// ─── CATEGORIES ─────────────────────────────────────────────────────────────
+
+// GET /admin/categorias
+router.get('/categorias', requireAuth, async (req, res) => {
+  try {
+    const categories = await query(`SELECT * FROM categories ORDER BY created_at ASC`);
+    // Count products per category
+    const counts = await query(`SELECT category, COUNT(*) as c FROM products GROUP BY category`);
+    const countMap = {};
+    counts.forEach(r => { countMap[r.category] = r.c; });
+    res.render('admin/categories/list', {
+      title: 'Categorías — Admin Romaessence',
+      categories,
+      countMap,
+      error: req.query.error || null,
+      success: req.query.success || null
+    });
+  } catch (err) {
+    res.status(500).send('Error: ' + err.message);
+  }
+});
+
+// POST /admin/categorias — Create
+router.post('/categorias', requireAuth, async (req, res) => {
+  try {
+    const { name, description, color, icon, active } = req.body;
+    if (!name || !name.trim()) return res.redirect('/admin/categorias?error=El+nombre+es+obligatorio');
+    const slug = name.trim().toLowerCase().replace(/\s+/g, '_');
+    const isActive = active === 'on' || active === '1' ? 1 : 0;
+    await query(`
+      INSERT INTO categories (name, description, color, icon, active)
+      VALUES (${esc(slug)}, ${esc(description || '')}, ${esc(color || '#a78bfa')}, ${esc(icon || '🏷️')}, ${isActive})
+    `);
+    res.redirect('/admin/categorias?success=Categoría+creada');
+  } catch (err) {
+    console.error(err);
+    const msg = err.message.includes('Duplicate') ? 'Ya+existe+una+categoría+con+ese+nombre' : encodeURIComponent(err.message);
+    res.redirect('/admin/categorias?error=' + msg);
+  }
+});
+
+// PUT /admin/categorias/:id — Update
+router.put('/categorias/:id', requireAuth, async (req, res) => {
+  try {
+    const { name, description, color, icon, active } = req.body;
+    const slug = (name || '').trim().toLowerCase().replace(/\s+/g, '_');
+    const isActive = active === 'on' || active === '1' ? 1 : 0;
+    await query(`
+      UPDATE categories SET
+        name = ${esc(slug)},
+        description = ${esc(description || '')},
+        color = ${esc(color || '#a78bfa')},
+        icon = ${esc(icon || '🏷️')},
+        active = ${isActive}
+      WHERE id = ${esc(req.params.id)}
+    `);
+    res.redirect('/admin/categorias?success=Categoría+actualizada');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/categorias?error=' + encodeURIComponent(err.message));
+  }
+});
+
+// DELETE /admin/categorias/:id
+router.delete('/categorias/:id', requireAuth, async (req, res) => {
+  try {
+    await query(`DELETE FROM categories WHERE id = ${esc(req.params.id)}`);
+    res.redirect('/admin/categorias?success=Categoría+eliminada');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/categorias?error=' + encodeURIComponent(err.message));
+  }
+});
+
+// PATCH /admin/categorias/:id/toggle
+router.patch('/categorias/:id/toggle', requireAuth, async (req, res) => {
+  try {
+    await query(`UPDATE categories SET active = CASE WHEN active = 1 THEN 0 ELSE 1 END WHERE id = ${esc(req.params.id)}`);
     res.json({ success: true });
   } catch (err) {
     res.json({ success: false, error: err.message });
