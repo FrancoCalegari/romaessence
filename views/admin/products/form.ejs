@@ -157,6 +157,14 @@
             <span>Recomendado: 1200×600px</span>
           </div>
           <div id="banner-preview" class="upload-preview"></div>
+
+          <!-- AI Banner Generation Button -->
+          <button type="button" id="ai-banner-btn" class="btn btn-ai" style="margin-top:0.75rem;width:100%;"
+                  data-photo-id="<%= isEdit && product.photo_file_id ? product.photo_file_id : '' %>"
+                  data-product-name="<%= isEdit ? product.name : '' %>">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            ✨ Generar Banner con IA
+          </button>
         </div>
 
         <!-- Extra images -->
@@ -209,4 +217,106 @@
 
 </form>
 
+<!-- ── AI BANNER GENERATION MODAL ── -->
+<dialog id="ai-modal" class="ai-modal">
+  <div class="ai-modal-inner">
+    <div class="ai-modal-header">
+      <h2>✨ Generar Banner con IA</h2>
+      <button type="button" class="modal-close" id="ai-modal-close">✕</button>
+    </div>
+
+    <!-- Format Selector -->
+    <div class="ai-section">
+      <label class="ai-label">Formato de imagen</label>
+      <div class="ai-format-grid">
+        <button type="button" class="ai-format-btn active" data-format="16:9">
+          <div class="ai-format-preview" style="aspect-ratio:16/9;"></div>
+          <span>16:9</span>
+          <small>Banner</small>
+        </button>
+        <button type="button" class="ai-format-btn" data-format="9:16">
+          <div class="ai-format-preview" style="aspect-ratio:9/16;"></div>
+          <span>9:16</span>
+          <small>Historia</small>
+        </button>
+        <button type="button" class="ai-format-btn" data-format="1:1">
+          <div class="ai-format-preview" style="aspect-ratio:1/1;"></div>
+          <span>1:1</span>
+          <small>Cuadrado</small>
+        </button>
+        <button type="button" class="ai-format-btn" data-format="4:5">
+          <div class="ai-format-preview" style="aspect-ratio:4/5;"></div>
+          <span>4:5</span>
+          <small>Vertical</small>
+        </button>
+      </div>
+    </div>
+
+    <!-- Prompt Input -->
+    <div class="ai-section">
+      <label class="ai-label" for="ai-prompt">Descripción del fondo / escena</label>
+      <textarea id="ai-prompt" class="form-control" rows="3"
+                placeholder="ej: fondo dorado con destellos brillantes, ambiente de lujo, pétalos de rosa flotando..."></textarea>
+      <span class="form-hint">Describí cómo querés que sea el fondo y la ambientación de la imagen</span>
+    </div>
+
+    <!-- Options -->
+    <div class="ai-section">
+      <label class="ai-label">Opciones adicionales</label>
+      <div class="ai-options">
+        <label class="ai-option">
+          <input type="checkbox" id="ai-include-title" checked>
+          <span>Incluir nombre del producto</span>
+        </label>
+        <div class="form-group" style="margin-top:0.5rem;">
+          <label for="ai-custom-text" style="font-size:0.75rem;">Texto personalizado (opcional)</label>
+          <input type="text" id="ai-custom-text" class="form-control"
+                 placeholder="ej: Ya disponible, Nuevo, Oferta especial...">
+        </div>
+      </div>
+    </div>
+
+    <!-- Generate Button -->
+    <div class="ai-actions-top">
+      <button type="button" id="ai-generate-btn" class="btn btn-ai btn-lg">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        Generar imagen
+      </button>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="ai-loading" class="ai-loading hidden">
+      <div class="ai-spinner"></div>
+      <p>Generando imagen con IA...</p>
+      <span>Esto puede tardar hasta 30 segundos</span>
+    </div>
+
+    <!-- Error message -->
+    <div id="ai-error" class="ai-error hidden"></div>
+
+    <!-- Generated Images Carousel -->
+    <div id="ai-carousel-section" class="ai-carousel-section hidden">
+      <label class="ai-label">Imágenes generadas</label>
+      <div class="ai-carousel">
+        <button type="button" class="ai-carousel-nav ai-carousel-prev" id="ai-prev">‹</button>
+        <div class="ai-carousel-track" id="ai-carousel-track"></div>
+        <button type="button" class="ai-carousel-nav ai-carousel-next" id="ai-next">›</button>
+      </div>
+      <div class="ai-carousel-dots" id="ai-carousel-dots"></div>
+
+      <div class="ai-actions-bottom">
+        <button type="button" id="ai-generate-another" class="btn btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Generar otra
+        </button>
+        <button type="button" id="ai-use-image" class="btn btn-primary">
+          ✓ Usar esta imagen como banner
+        </button>
+      </div>
+    </div>
+
+  </div>
+</dialog>
+
 <%- include('../partials/layout-end') %>
+

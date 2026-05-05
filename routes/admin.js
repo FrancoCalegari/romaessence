@@ -3,6 +3,8 @@ const router = express.Router();
 const multer = require('multer');
 const { query, uploadFile, deleteFile, esc } = require('../database/spiderApi');
 const { requireAuth } = require('../middleware/auth');
+const { GoogleGenAI } = require('@google/genai');
+const axios = require('axios');
 
 // Multer: memory storage (files go to Spider API)
 const upload = multer({
@@ -15,7 +17,7 @@ async function getCategoryNames() {
   try {
     const rows = await query(`SELECT name FROM categories WHERE active = 1 ORDER BY name ASC`);
     if (rows && rows.length > 0) return rows.map(r => r.name);
-  } catch (_) {}
+  } catch (_) { }
   return ['perfume', 'crema', 'jabones', 'desodorantes'];
 }
 
@@ -246,7 +248,7 @@ router.put('/productos/:id', requireAuth, upload.fields([
       const f = req.files.photo[0];
       const uploaded = await uploadFile(f.buffer, f.originalname, f.mimetype);
       photo_file_id = uploaded.id;
-      if (existing.photo_file_id) deleteFile(existing.photo_file_id).catch(() => {});
+      if (existing.photo_file_id) deleteFile(existing.photo_file_id).catch(() => { });
     }
 
     // Banner
@@ -255,11 +257,11 @@ router.put('/productos/:id', requireAuth, upload.fields([
       const f = req.files.banner[0];
       const uploaded = await uploadFile(f.buffer, f.originalname, f.mimetype);
       banner_file_id = uploaded.id;
-      if (existing.banner_file_id) deleteFile(existing.banner_file_id).catch(() => {});
+      if (existing.banner_file_id) deleteFile(existing.banner_file_id).catch(() => { });
     }
     // Remove banner if checkbox checked
     if (req.body.remove_banner === 'on') {
-      if (banner_file_id) deleteFile(banner_file_id).catch(() => {});
+      if (banner_file_id) deleteFile(banner_file_id).catch(() => { });
       banner_file_id = null;
     }
 
@@ -270,7 +272,7 @@ router.put('/productos/:id', requireAuth, upload.fields([
       ? remove_extra_images
       : (remove_extra_images ? [remove_extra_images] : []);
     toRemove.forEach(id => {
-      deleteFile(id).catch(() => {});
+      deleteFile(id).catch(() => { });
       extra_ids = extra_ids.filter(x => String(x) !== String(id));
     });
     // Add new ones
@@ -319,9 +321,9 @@ router.delete('/productos/:id', requireAuth, async (req, res) => {
     const rows = await query(`SELECT * FROM products WHERE id = ${esc(req.params.id)} LIMIT 1`);
     if (rows && rows.length > 0) {
       const p = parseProduct(rows[0]);
-      if (p.photo_file_id) deleteFile(p.photo_file_id).catch(() => {});
-      if (p.banner_file_id) deleteFile(p.banner_file_id).catch(() => {});
-      p.extra_images.forEach(id => deleteFile(id).catch(() => {}));
+      if (p.photo_file_id) deleteFile(p.photo_file_id).catch(() => { });
+      if (p.banner_file_id) deleteFile(p.banner_file_id).catch(() => { });
+      p.extra_images.forEach(id => deleteFile(id).catch(() => { }));
     }
     await query(`DELETE FROM products WHERE id = ${esc(req.params.id)}`);
     res.redirect('/admin/productos');
@@ -401,7 +403,7 @@ router.put('/promociones/:id', requireAuth, upload.single('promo_image'), async 
     if (req.file) {
       const uploaded = await uploadFile(req.file.buffer, req.file.originalname, req.file.mimetype);
       image_file_id = uploaded.id;
-      if (existing.image_file_id) deleteFile(existing.image_file_id).catch(() => {});
+      if (existing.image_file_id) deleteFile(existing.image_file_id).catch(() => { });
     }
 
     const isActive = active === 'on' || active === '1' ? 1 : 0;
@@ -427,7 +429,7 @@ router.delete('/promociones/:id', requireAuth, async (req, res) => {
   try {
     const rows = await query(`SELECT * FROM promotions WHERE id = ${esc(req.params.id)} LIMIT 1`);
     if (rows && rows.length > 0 && rows[0].image_file_id) {
-      deleteFile(rows[0].image_file_id).catch(() => {});
+      deleteFile(rows[0].image_file_id).catch(() => { });
     }
     await query(`DELETE FROM promotions WHERE id = ${esc(req.params.id)}`);
     res.redirect('/admin/promociones');
@@ -531,6 +533,258 @@ router.patch('/categorias/:id/toggle', requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.json({ success: false, error: err.message });
+  }
+});
+
+// ─── AI IMAGE GENERATION ────────────────────────────────────────────────────
+
+const FORMAT_DIMENSIONS = {
+  '16:9': { w: 1280, h: 720, label: 'Banner horizontal' },
+  '9:16': { w: 720, h: 1280, label: 'Historia vertical' },
+  '1:1': { w: 1080, h: 1080, label: 'Publicación cuadrada' },
+  '4:5': { w: 1080, h: 1350, label: 'Publicación vertical' },
+};
+
+/** Download an image from Spider API and return as base64 */
+async function getImageAsBase64(fileId) {
+  const response = await axios.get(
+    `${process.env.SPIDER_API_URL}/storage/files/${fileId}`,
+    {
+      headers: { 'X-API-KEY': process.env.SPIDER_API_KEY },
+      responseType: 'arraybuffer'
+    }
+  );
+  return Buffer.from(response.data).toString('base64');
+}
+
+// POST /admin/api/generate-banner
+router.post('/api/generate-banner', requireAuth, async (req, res) => {
+  try {
+    const { imageFileId, prompt, format, includeTitle, customText, productName } = req.body;
+
+    if (!imageFileId) return res.status(400).json({ error: 'Se requiere una imagen de producto' });
+    if (!process.env.OPENROUTER_API_KEY) {
+      return res.status(500).json({ error: 'OPENROUTER_API_KEY no está configurada en .env' });
+    }
+
+    const aspectRatio = format || '16:9';
+
+    // Get product image as base64
+    const imageBase64 = await getImageAsBase64(imageFileId);
+
+    // Build the prompt
+    let aiPrompt = `Genera una imagen publicitaria profesional.`;
+    aiPrompt += `\n\nLa imagen debe mostrar el producto de la foto proporcionada como elemento central, sobre un fondo: ${prompt || 'elegante y moderno'}.`;
+    aiPrompt += `\n\nEl producto debe verse claramente, bien iluminado y destacado. El fondo debe complementar al producto.`;
+
+    if (includeTitle && productName) {
+      aiPrompt += `\n\nIncluir el texto "${productName}" como título prominente con tipografía elegante.`;
+    }
+    if (customText) {
+      aiPrompt += `\n\nIncluir también el texto: "${customText}" como subtítulo o badge decorativo.`;
+    }
+
+    aiPrompt += `\n\nEstilo: Publicidad de alta calidad, colores vibrantes, composición profesional de marketing.`;
+
+    // Call OpenRouter API
+    const payload = {
+      model: 'google/gemini-3.1-flash-image-preview',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+            { type: 'text', text: aiPrompt }
+          ]
+        }
+      ],
+      modalities: ['image', 'text'],
+      max_tokens: 1000,
+      image_config: {
+        aspect_ratio: aspectRatio,
+        image_size: '2K'
+      }
+    };
+
+    const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', payload, {
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const choices = response.data.choices;
+    let generatedImage = null;
+
+    if (choices && choices.length > 0) {
+      const message = choices[0].message;
+      if (message.images && message.images.length > 0) {
+        const dataUrl = message.images[0].image_url.url;
+        // Parse data URL: data:image/png;base64,...
+        const match = dataUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/);
+        if (match) {
+          generatedImage = {
+            mimeType: match[1],
+            data: match[2]
+          };
+        } else {
+          // Fallback if OpenRouter returns raw base64 without prefix
+          generatedImage = {
+            mimeType: 'image/png',
+            data: dataUrl.replace(/^data:image\/\w+;base64,/, '')
+          };
+        }
+      }
+    }
+
+    if (!generatedImage) {
+      console.error('Respuesta OpenRouter:', JSON.stringify(response.data, null, 2));
+      return res.status(500).json({ error: 'No se pudo generar la imagen. Intentá con otro prompt.' });
+    }
+
+    res.json({
+      success: true,
+      image: generatedImage,
+    });
+  } catch (err) {
+    console.error('AI Generation Error:', err.response?.data || err.message);
+    res.status(500).json({ error: err.response?.data?.error?.message || err.message || 'Error al generar imagen' });
+  }
+});
+
+// POST /admin/api/generate-story
+router.post('/api/generate-story', requireAuth, async (req, res) => {
+  try {
+    const { productIds, prompt, format, customText } = req.body;
+
+    if (!productIds || productIds.length === 0) {
+      return res.status(400).json({ error: 'Seleccioná al menos un producto' });
+    }
+    if (!process.env.OPENROUTER_API_KEY) {
+      return res.status(500).json({ error: 'OPENROUTER_API_KEY no está configurada en .env' });
+    }
+
+    const aspectRatio = format || '9:16';
+
+    // Fetch products
+    const idList = productIds.map(id => esc(id)).join(',');
+    const products = (await query(`SELECT * FROM products WHERE id IN (${idList})`)).map(parseProduct);
+
+    if (products.length === 0) return res.status(404).json({ error: 'Productos no encontrados' });
+
+    // Get images for products that have photos
+    const contentArray = [];
+    const productNames = [];
+    for (const p of products) {
+      if (p.photo_file_id) {
+        const imgBase64 = await getImageAsBase64(p.photo_file_id);
+        contentArray.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imgBase64}` } });
+        productNames.push(p.name);
+      }
+    }
+
+    if (contentArray.length === 0) {
+      return res.status(400).json({ error: 'Los productos seleccionados no tienen imágenes' });
+    }
+
+    // Build prompt
+    let aiPrompt = `Genera una imagen publicitaria profesional.`;
+    aiPrompt += `\n\nCrea una composición con ${contentArray.length > 1 ? 'los productos de las fotos proporcionadas' : 'el producto de la foto proporcionada'} sobre un fondo: ${prompt || 'elegante y moderno'}.`;
+    aiPrompt += `\n\nProductos: ${productNames.join(', ')}`;
+    if (customText) {
+      aiPrompt += `\n\nIncluir el texto: "${customText}"`;
+    }
+    aiPrompt += `\n\nEstilo: Publicidad de alta calidad para redes sociales, colores vibrantes, composición profesional.`;
+
+    contentArray.push({ type: 'text', text: aiPrompt });
+
+    const payload = {
+      model: 'google/gemini-3.1-flash-image-preview',
+      messages: [
+        {
+          role: 'user',
+          content: contentArray
+        }
+      ],
+      modalities: ['image', 'text'],
+      max_tokens: 1000,
+      image_config: {
+        aspect_ratio: aspectRatio,
+        image_size: '2K'
+      }
+    };
+
+    const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', payload, {
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const choices = response.data.choices;
+    let generatedImage = null;
+
+    if (choices && choices.length > 0) {
+      const message = choices[0].message;
+      if (message.images && message.images.length > 0) {
+        const dataUrl = message.images[0].image_url.url;
+        const match = dataUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/);
+        if (match) {
+          generatedImage = {
+            mimeType: match[1],
+            data: match[2]
+          };
+        } else {
+          generatedImage = {
+            mimeType: 'image/png',
+            data: dataUrl.replace(/^data:image\/\w+;base64,/, '')
+          };
+        }
+      }
+    }
+
+    if (!generatedImage) {
+      console.error('Respuesta OpenRouter:', JSON.stringify(response.data, null, 2));
+      return res.status(500).json({ error: 'No se pudo generar la imagen. Intentá con otro prompt.' });
+    }
+
+    res.json({ success: true, image: generatedImage });
+  } catch (err) {
+    console.error('AI Story Generation Error:', err.response?.data || err.message);
+    res.status(500).json({ error: err.response?.data?.error?.message || err.message || 'Error al generar imagen' });
+  }
+});
+
+// ─── STORIES PAGE ───────────────────────────────────────────────────────────
+
+router.get('/historias', requireAuth, async (req, res) => {
+  try {
+    const products = (await query(
+      `SELECT * FROM products WHERE active = 1 AND photo_file_id IS NOT NULL ORDER BY name ASC`
+    )).map(parseProduct);
+
+    let openRouterCredits = { total: 0, usage: 0 };
+    if (process.env.OPENROUTER_API_KEY) {
+      try {
+        const creditRes = await axios.get('https://openrouter.ai/api/v1/credits', {
+          headers: { 'Authorization': 'Bearer ' + process.env.OPENROUTER_API_KEY }
+        });
+        openRouterCredits = {
+          total: creditRes.data.data.total_credits || 0,
+          usage: creditRes.data.data.total_usage || 0
+        };
+      } catch (e) {
+        console.error('Error fetching OpenRouter credits:', e.message);
+      }
+    }
+
+    res.render('admin/stories', {
+      title: 'Historias IA — Admin Romaessence',
+      products,
+      openRouterCredits
+    });
+  } catch (err) {
+    res.status(500).send('Error: ' + err.message);
   }
 });
 
