@@ -3,7 +3,6 @@ const router = express.Router();
 const multer = require('multer');
 const { query, uploadFile, deleteFile, esc } = require('../database/spiderApi');
 const { requireAuth } = require('../middleware/auth');
-const { GoogleGenAI } = require('@google/genai');
 const axios = require('axios');
 
 // Multer: memory storage (files go to Spider API)
